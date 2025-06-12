@@ -21,6 +21,11 @@
 
             <!-- Left: Name + Email -->
             <div class="flex-1 w-full">
+
+                <!-- Bio -->
+                <x-text-input id="bio" name="bio" type="text" class="mt-1 block w-full"
+                              :value="old('bio', $user->bio)" placeholder="Tell us about yourself..." />
+
                 <!-- Name -->
                 <div>
                     <x-input-label for="name" :value="__('Name')" />

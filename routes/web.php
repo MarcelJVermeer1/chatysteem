@@ -3,14 +3,24 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FriendshipsController;
+use App\Http\Controllers\MessagesController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/messages', [MessagesController::class, 'index'])->name('messages.index');
+    Route::get('/messages/{user}', [MessagesController::class, 'with'])->name('messages.with');
+    Route::post('/messages/{user}', [MessagesController::class, 'store'])->name('messages.store');
+});
+
+
+Route::get('/dashboard',[MessagesController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
+
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -19,15 +29,19 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/avatar/{filename}', function ($filename) {
-    $path = 'avatars/' . $filename;
-
-    // Optional: protect access (e.g. only allow logged-in users)
     if (!Auth::check()) {
         abort(403);
     }
 
+    $path = 'avatars/' . $filename;
+
+    // Optional fallback for broken avatar reference
     if (!Storage::exists($path)) {
-        abort(404);
+        $path = 'avatars/placeholder3.png';
+
+        if (!Storage::exists($path)) {
+            abort(404);
+        }
     }
 
     return Response::make(Storage::get($path), 200, [
@@ -37,6 +51,10 @@ Route::get('/avatar/{filename}', function ($filename) {
 
 
 Route::get('/users', [FriendshipsController::class, 'index'])->name('users.index');
+Route::post('/friendships/{receiver}', [FriendshipsController::class, 'store'])->name('friendships.store');
+Route::get('/friend-requests', [FriendshipsController::class, 'show'])->name('friendships.requests');
+Route::post('/friendships/{id}/accept', [FriendshipsController::class, 'accept'])->name('friendships.accept');
+Route::delete('/friendships/{id}/deny', [FriendshipsController::class, 'deny'])->name('friendships.deny');
 
 
 

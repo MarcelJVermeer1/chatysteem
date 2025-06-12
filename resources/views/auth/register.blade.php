@@ -1,10 +1,18 @@
 <x-guest-layout>
     <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data">
         @csrf
+        <!-- Avatar -->
         <div class="mt-4">
             <label for="avatar" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Profile Photo</label>
             <input  id="avatar" type="file" name="avatar" accept="image/*" class="mt-1 block w-full font-medium text-gray-700 dark:text-gray-300">
         </div>
+        <!-- Bio -->
+        <div class="mt-4">
+            <x-input-label for="bio" :value="__('Bio')" />
+            <x-text-input id="bio" class="block mt-1 w-full" type="text" name="bio" :value="old('bio')" placeholder="Tell us about yourself..." />
+            <x-input-error :messages="$errors->get('bio')" class="mt-2" />
+        </div>
+
         <!-- Name -->
         <div>
             <x-input-label for="name" :value="__('Name')" />

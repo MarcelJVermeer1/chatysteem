@@ -34,6 +34,11 @@ class ProfileController extends Controller
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
         }
+        //add bio
+        if ($request->filled('bio')) {
+            $user->bio = $request->input('bio');
+        }
+
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {

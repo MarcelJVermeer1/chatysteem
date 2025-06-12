@@ -1,4 +1,5 @@
 <x-app-layout>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
             {{ __('Find Friends') }}
@@ -23,7 +24,7 @@
                         <img
                             :src="user.avatar
                                 ? '/avatar/' + user.avatar.split('/').pop()
-                                : '/images/avatar-placeholder.png'"
+                                : '/avatar/placeholder3.png'"
                             alt=""
                             class="w-12 h-12 rounded-full object-cover border"
                         >
@@ -34,11 +35,20 @@
                     </div>
 
                     <!-- Right: Add Friend Button -->
-                    <form method="POST" action="#">
-                        <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
-                            Add Friend
+                    <template x-if="!user.pending">
+                        <form method="POST" :action="`/friendships/${user.id}`">
+                            <input type="hidden" name="_token" :value="csrf">
+                            <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                                Add Friend
+                            </button>
+                        </form>
+                    </template>
+
+                    <template x-if="user.pending">
+                        <button disabled class="bg-gray-500 text-white px-4 py-2 rounded cursor-not-allowed">
+                            Pending
                         </button>
-                    </form>
+                    </template>
                 </li>
             </template>
 
@@ -54,6 +64,8 @@
             return {
                 search: '',
                 users: [],
+                csrf: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+
                 fetchUsers() {
                     fetch(`/users?search=${encodeURIComponent(this.search)}`, {
                         headers: {

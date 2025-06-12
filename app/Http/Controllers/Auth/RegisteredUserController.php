@@ -33,6 +33,7 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'bio' => ['nullable', 'string', 'max:1000'],
             'avatar' => ['nullable', 'image', 'max:2048'],
         ]);
 
@@ -40,7 +41,7 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-
+            'bio' => $request->bio ?? null,
         ]);
 
         if ($request->hasFile('avatar')) {
@@ -52,7 +53,7 @@ class RegisteredUserController extends Controller
 
             $user->avatar = $path;
             $user->save();
-        }
+        }else{}
 
         event(new Registered($user));
 

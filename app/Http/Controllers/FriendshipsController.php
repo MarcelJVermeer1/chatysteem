@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\friendships;
+use App\Models\Friendships;
 use App\Models\User;
+use App\Models\Messages;
 use Illuminate\Http\Request;
 
 class FriendshipsController extends Controller
@@ -13,22 +14,42 @@ class FriendshipsController extends Controller
      */
     public function index(Request $request)
     {
+
         $search = $request->query('search');
+        $authId = auth()->id();
 
         $users = User::query()
-            ->where('id', '!=', auth()->id()) // exclude current user
+            ->where('id', '!=', $authId)
             ->when($search, function ($query, $search) {
                 return $query->where('name', 'like', "%{$search}%");
             })
-            ->get();
+            ->get()
+            ->filter(function ($user) use ($authId) {
+                // ❌ Filter out accepted friendships in both directions
+                return !Friendships::where(function ($query) use ($authId, $user) {
+                    $query->where('sender_id', $authId)
+                        ->where('receiver_id', $user->id);
+                })->orWhere(function ($query) use ($authId, $user) {
+                    $query->where('sender_id', $user->id)
+                        ->where('receiver_id', $authId);
+                })->where('status', 'accepted')->exists();
+            })
+            ->map(function ($user) use ($authId) {
+                // ✅ Mark as pending if there's a pending request from logged-in user to that user
+                $user->pending = Friendships::where('sender_id', $authId)
+                    ->where('receiver_id', $user->id)
+                    ->where('status', 'pending')
+                    ->exists();
+
+                return $user;
+            })
+            ->values(); // reset collection keys
 
         if ($request->wantsJson()) {
             return response()->json($users);
         }
 
-
         return view('users.index', compact('users', 'search'));
-
     }
 
     /**
@@ -36,15 +57,41 @@ class FriendshipsController extends Controller
      */
     public function create()
     {
-        //
+
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(User $receiver)
     {
-        //
+        $sender = auth()->user();
+
+        if($sender->id === $receiver->id){
+            return back()->withErrors("You cannot add yourself as a friend");
+        }
+
+        $alreadyExists = Friendships::where(function ($query) use ($sender, $receiver){
+            $query->where('sender_id', $sender->id)
+                ->where('receiver_id' , $receiver->id);
+        })->orwhere(function ($query) use ($sender , $receiver) {
+                $query->where('sender_id', $receiver->id)
+                    ->where('receiver_id',$sender->id);
+        })->exists();
+
+
+        if($alreadyExists){
+            return back()->withErrors('Friend request already exists or you are already friends.');
+        }
+
+        friendships::create([
+            'sender_id'=>$sender->id,
+            'receiver_id'=> $receiver->id,
+            'status'=>'pending',
+        ]);
+
+        return back()->with('success', 'Friend request sent!');
+
     }
 
     /**
@@ -52,7 +99,14 @@ class FriendshipsController extends Controller
      */
     public function show(friendships $friendships)
     {
-        //
+        $userId = auth()->id();
+
+        $pendingRequests = Friendships::with('sender')
+        ->where('receiver_id', $userId)
+            ->where('status', 'pending')
+            ->get();
+
+        return view('friendships.requests', compact('pendingRequests'));
     }
 
     /**
@@ -62,20 +116,71 @@ class FriendshipsController extends Controller
     {
         //
     }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, friendships $friendships)
+    public function accept($id)
     {
-        //
+        $friendship = Friendships::where('id', $id)
+            ->where('receiver_id', auth()->id())
+            ->where('status', 'pending')
+            ->firstOrFail();
+
+        $friendship->update(['status' => 'accepted']);
+
+        return back()->with('success', 'Friend request accepted!');
+
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(friendships $friendships)
+    public function deny($id)
     {
-        //
+        $friendship = Friendships::where('id', $id)
+            ->where('receiver_id', auth()->id())
+            ->where('status', 'pending')
+            ->firstOrFail();
+
+        $friendship->delete();
+
+        return back()->with('success', 'Friend request denied.');
+
     }
+
+    public function friendlist(Request $request)
+    {
+        $authId = auth()->id();
+
+
+        // Find all accepted friendships
+        $friends = Friendships::where('status', 'accepted')
+            ->where(function ($query) use ($authId) {
+                $query->where('sender_id', $authId)
+                    ->orWhere('receiver_id', $authId);
+            })
+            ->get()
+            ->map(function ($friendship) use ($authId) {
+                // Get friend user model
+                $friend = $friendship->sender_id == $authId
+                    ? $friendship->receiver
+                    : $friendship->sender;
+
+                // Find last message time between these two users
+                $lastMessage = Messages::where(function ($query) use ($authId, $friend) {
+                    $query->where('sender_id', $authId)->where('receiver_id', $friend->id);
+                })->orWhere(function ($query) use ($authId, $friend) {
+                    $query->where('sender_id', $friend->id)->where('receiver_id', $authId);
+                })->orderByDesc('created_at')->first();
+
+                $friend->lastInteraction = $lastMessage?->created_at ?? $friendship->created_at;
+
+                return $friend;
+            })
+            ->sortByDesc('lastInteraction')
+            ->values(); // Reset keys
+
+        if ($request->wantsJson()) {
+            return response()->json($friends);
+        }
+
+        return view('friends.index', compact('friends'));
+
+    }
+
+
 }
