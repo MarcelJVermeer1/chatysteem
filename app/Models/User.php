@@ -48,24 +48,4 @@ class User extends Authenticatable
         ];
     }
 
-    public function friends()
-    {
-        return User::whereHas('sentFriendships', function ($query) {
-            $query->where('status', 'accepted')
-                ->where('receiver_id', $this->id);
-        })->orWhereHas('receivedFriendships', function ($query) {
-            $query->where('status', 'accepted')
-                ->where('sender_id', $this->id);
-        })->get();
-    }
-
-    public function sentFriendships()
-    {
-        return $this->hasMany(\App\Models\Friendships::class, 'sender_id');
-    }
-
-    public function receivedFriendships()
-    {
-        return $this->hasMany(\App\Models\Friendships::class, 'receiver_id');
-    }
 }
