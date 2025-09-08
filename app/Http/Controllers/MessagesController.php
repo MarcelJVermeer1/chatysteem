@@ -70,7 +70,7 @@ class MessagesController extends Controller
 
         return User::whereIn('id', $friendIds)->get()->map(function ($friend) use ($userId) {
             $friend->hasUnread = Messages::where('sender_id', $friend->id)
-                ->where('receiver_id', $userId)
+                ->where('receih ver_id', $userId)
                 ->whereNull('read_at')
                 ->exists();
             return $friend;

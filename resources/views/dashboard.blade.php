@@ -14,7 +14,7 @@
                     <li>
                         <a href="{{ route('messages.with', $friend->id) }}"
                            class="flex items-center space-x-3 hover:bg-gray-700 p-2 rounded">
-                            <img src="{{ $friend->avatar ? asset('avatar/' . basename($friend->avatar)) : asset('images/avatar-placeholder.png') }}"
+                            <img src="{{ $friend->avatar ? asset('avatar/' . basename($friend->avatar)) : asset('/avatar/placeholder3.png') }}"
                                  class="w-10 h-10 rounded-full border">
                             <span>{{ $friend->name }}</span>
                             @if (!empty($friend->hasUnread))

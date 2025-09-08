@@ -25,7 +25,7 @@ class FriendshipsController extends Controller
             })
             ->get()
             ->filter(function ($user) use ($authId) {
-                // ❌ Filter out accepted friendships in both directions
+                //Filter out accepted friendships in both directions
                 return !Friendships::where(function ($query) use ($authId, $user) {
                     $query->where('sender_id', $authId)
                         ->where('receiver_id', $user->id);
@@ -35,7 +35,7 @@ class FriendshipsController extends Controller
                 })->where('status', 'accepted')->exists();
             })
             ->map(function ($user) use ($authId) {
-                // ✅ Mark as pending if there's a pending request from logged-in user to that user
+                // Mark as pending if there's a pending request from logged-in user to that user
                 $user->pending = Friendships::where('sender_id', $authId)
                     ->where('receiver_id', $user->id)
                     ->where('status', 'pending')
@@ -139,46 +139,6 @@ class FriendshipsController extends Controller
         $friendship->delete();
 
         return back()->with('success', 'Friend request denied.');
-
-    }
-
-    public function friendlist(Request $request)
-    {
-        $authId = auth()->id();
-
-
-        // Find all accepted friendships
-        $friends = Friendships::where('status', 'accepted')
-            ->where(function ($query) use ($authId) {
-                $query->where('sender_id', $authId)
-                    ->orWhere('receiver_id', $authId);
-            })
-            ->get()
-            ->map(function ($friendship) use ($authId) {
-                // Get friend user model
-                $friend = $friendship->sender_id == $authId
-                    ? $friendship->receiver
-                    : $friendship->sender;
-
-                // Find last message time between these two users
-                $lastMessage = Messages::where(function ($query) use ($authId, $friend) {
-                    $query->where('sender_id', $authId)->where('receiver_id', $friend->id);
-                })->orWhere(function ($query) use ($authId, $friend) {
-                    $query->where('sender_id', $friend->id)->where('receiver_id', $authId);
-                })->orderByDesc('created_at')->first();
-
-                $friend->lastInteraction = $lastMessage?->created_at ?? $friendship->created_at;
-
-                return $friend;
-            })
-            ->sortByDesc('lastInteraction')
-            ->values(); // Reset keys
-
-        if ($request->wantsJson()) {
-            return response()->json($friends);
-        }
-
-        return view('friends.index', compact('friends'));
 
     }
 
